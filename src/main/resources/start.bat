@@ -1,0 +1,1 @@
+ java -jar -Xmx512M -Xms512M -server ${jarName}
