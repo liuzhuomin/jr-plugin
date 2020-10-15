@@ -3,8 +3,12 @@ package cn.jr.plugin.other;
 import org.apache.maven.plugin.logging.Log;
 
 import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class FileUtil {
+
+    static ThreadLocal<File> rootPath = new ThreadLocal<>();
 
     /**
      * 创建且覆盖文件
@@ -16,6 +20,7 @@ public final class FileUtil {
         File runBatFile = new File(path);
         if (runBatFile.exists()) {
             boolean delete = runBatFile.delete();
+            Application.getLog().debug("delete file: " + path + " ==result:" + delete);
         }
         content = content.replace("\t", "");
         FileWriter runBatFileW = new FileWriter(runBatFile);
@@ -30,34 +35,73 @@ public final class FileUtil {
      * @param sourceFile 源文件完整路径(包括文件名)
      * @param targetPath 目标文件目录(不包括文件名)
      */
-    public static String copy(String sourceFile, String targetPath) {
-        File file = new File(sourceFile);
-        createDir(new File(targetPath));
-        try {
-            String path = targetPath.endsWith(File.separator)
-                    ? targetPath : targetPath + File.separator;
-            String targetAbsPath = path + file.getName();
+    public static List<String> copy(String sourceFile, String targetPath) {
 
-            FileInputStream fis = new FileInputStream(file);
-            FileOutputStream out = new FileOutputStream(targetAbsPath);
-            byte[] datas = new byte[1024 * 8];
-            int len;//创建长度
-            while ((len = fis.read(datas)) != -1) {
-                out.write(datas, 0, len);
+        List<String> result = new ArrayList<>();
+
+        File sourceFileObj = new File(sourceFile);
+        File targetFileObj = new File(targetPath);
+        createDir(targetFileObj);
+
+        boolean sourceFileObjDirectory = sourceFileObj.isDirectory();
+        boolean targetFileObjDirectory = targetFileObj.isDirectory();
+
+        if (sourceFileObjDirectory) {
+            if (targetFileObjDirectory) {
+                //TODO 递归拷贝所有文件
+                rootPath.set(sourceFileObj);
+                copyAllFile(result, sourceFileObj, targetFileObj);
+            } else {
+                Application.getLog().error("sourceFile is a directory but targetPath is't a directory ， so do not anything");
             }
-            fis.close();//释放资源
-            out.flush();
-            out.close();//释放资源
-            return targetAbsPath;
-        } catch (IOException e) {
-            e.printStackTrace();
+        } else {
+            if (targetFileObjDirectory) {
+                try {
+                    //拼接且拷贝的目录下
+                    String path = targetPath.endsWith(File.separator)
+                            ? targetPath : targetPath + File.separator;
+                    String targetAbsPath = path + sourceFileObj.getName();
+                    File file = new File(targetAbsPath);
+                    copyFile(sourceFileObj, file);
+                    result.add(file.getAbsolutePath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            } else {
+                //覆盖文件
+                try {
+                    copyFile(sourceFileObj, targetFileObj);
+                    result.add(targetFileObj.getAbsolutePath());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
         }
-        return null;
+        return result;
     }
 
-    static void createDir(File tarFile) {
-        if (!tarFile.exists()) {
-            tarFile.mkdirs();
+
+    private static void copyAllFile(List<String> result, File sourceFileObj, File targetFileObj) {
+        if (sourceFileObj.isDirectory()) {
+            File[] files = sourceFileObj.listFiles();
+            assert files != null;
+            for (File file : files) {
+                copyAllFile(result, file, targetFileObj);
+            }
+        } else {
+            String absolutePath = sourceFileObj.getAbsolutePath();
+            String replace = absolutePath.replace(rootPath.get().getAbsolutePath(), "");
+            String targetPath = targetFileObj.getAbsolutePath() + replace;
+            Application.getLog().info("absolutePath path:" + absolutePath);
+            Application.getLog().info("replace path:" + replace);
+            Application.getLog().info("target path:" + targetPath);
+            try {
+                File file = new File(targetPath);
+                copyFile(sourceFileObj, file);
+                result.add(file.getAbsolutePath());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 
@@ -150,7 +194,7 @@ public final class FileUtil {
     public static void update(File file, String regex, String profile) {
         try {
             String s = FileUtil.readFileByString(file);
-            if(s.contains(regex)){
+            if (s.contains(regex)) {
                 String replaceStr = s.replace(regex, profile);
                 BufferedWriter bufferedWriter =
                         new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)));
@@ -172,6 +216,27 @@ public final class FileUtil {
         }
         br.close();
         return sb.toString();
+    }
+
+
+    private static void copyFile(File sourceFileObj, File targetAbsPath) throws IOException {
+        FileInputStream fis = new FileInputStream(sourceFileObj);
+        FileOutputStream out = new FileOutputStream(targetAbsPath);
+        byte[] datas = new byte[1024 * 8];
+        int len;//创建长度
+        while ((len = fis.read(datas)) != -1) {
+            out.write(datas, 0, len);
+        }
+        fis.close();//释放资源
+        out.flush();
+        out.close();//释放资源
+    }
+
+    static void createDir(File tarFile) {
+        if (!tarFile.exists()) {
+            boolean mkdirs = tarFile.mkdirs();
+            Application.getLog().debug("mkdirs : " + tarFile + " ==result:" + mkdirs);
+        }
     }
 
 //    public static void main(String[] args) {

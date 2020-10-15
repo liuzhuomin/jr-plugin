@@ -50,8 +50,17 @@ public class PackageMojo extends AbstractCopyFileMojo {
     @Parameter
     private String jarName;
 
+    @Parameter(defaultValue = "false")
+    private boolean skip;
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
+        Application.setLog(getLog());
+        String packaging = project.getPackaging();
+        if (!"jar".equals(packaging) || skip) {
+            Application.getLog().info("not jar so skip...");
+            return;
+        }
 
         //拷贝文件操作
         try {

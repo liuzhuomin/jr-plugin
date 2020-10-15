@@ -56,10 +56,6 @@ public abstract class AbstractCopyFileMojo extends AbstractMojo {
         Log log = getLog();
         Application.setLog(log);
 
-        String packaging = project.getPackaging();
-        if (!"jar".equals(packaging)) {
-            Application.getLog().info("not jar so skip...");
-        }
 
         basedir = new File(basedir.getCanonicalPath());
         targetDir = new File(targetDir.getCanonicalPath());
@@ -90,8 +86,10 @@ public abstract class AbstractCopyFileMojo extends AbstractMojo {
                 for (File copyFile : copyFiles) {
                     log.info("copyFile.getAbsolutePath()..." + copyFile.getAbsolutePath());
                     log.info("targetDir.getAbsolutePath()..." + targetDir.getAbsolutePath());
-                    String copy = FileUtil.copy(copyFile.getAbsolutePath(), targetDir.getAbsolutePath());
-                    replaceStr(copy);
+                    List<String> copy = FileUtil.copy(copyFile.getAbsolutePath(), targetDir.getAbsolutePath());
+                    for (String s : copy) {
+                        replaceStr(s);
+                    }
                 }
                 log.info("总共拷贝了" + copyFiles.size() + "个文件");
             }
@@ -113,8 +111,10 @@ public abstract class AbstractCopyFileMojo extends AbstractMojo {
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                String copy = FileUtil.copy(sourcePath, targetPath);
-                replaceStr(copy);
+                List<String> copy = FileUtil.copy(sourcePath, targetPath);
+                for (String s : copy) {
+                    replaceStr(s);
+                }
                 log.info("sourcePath: " + sourcePath);
                 log.info("targetPath: " + targetPath);
             });
